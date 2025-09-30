@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia';
+import {defineStore} from 'pinia';
 
 export interface LabelItem {
     text: string;
@@ -12,13 +12,21 @@ export interface Account {
     password: string | null;
 }
 
+type addAccountInterface = {
+    id: string;
+    labels: string;
+    type: 'ldap' | 'local';
+    login: string;
+    password: string | null
+}
+type updateAccountInterface = Omit<addAccountInterface, 'id'>
 export const useAccountStore = defineStore('account', {
     state: () => ({
         accounts: [] as Account[],
     }),
 
     actions: {
-        addAccount(accountData: {id: string; labels: string; type: 'ldap' | 'local'; login: string; password: string | null }) {
+        addAccount(accountData: addAccountInterface) {
             const labelsArray = this.parseLabels(accountData.labels);
             const newAccount: Account = {
                 id: Date.now().toString(),
@@ -30,7 +38,7 @@ export const useAccountStore = defineStore('account', {
             this.accounts.push(newAccount);
         },
 
-        updateAccount(id: string, accountData: { labels: string; type: 'ldap' | 'local'; login: string; password: string | null }) {
+        updateAccount(id: string, accountData: updateAccountInterface) {
             const index = this.accounts.findIndex(acc => acc.id === id);
             if (index !== -1) {
                 const labelsArray = this.parseLabels(accountData.labels);
@@ -54,7 +62,7 @@ export const useAccountStore = defineStore('account', {
                 .split(';')
                 .map(label => label.trim())
                 .filter(label => label !== '')
-                .map(text => ({ text }));
+                .map(text => ({text}));
         },
 
         formatLabels(labels: LabelItem[]): string {
