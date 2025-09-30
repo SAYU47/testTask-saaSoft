@@ -1,85 +1,14 @@
-<template>
-  <div class="card">
-    <DataTable :value="displayAccounts" :size="'small'"  tableStyle="min-width: 50rem">
-      <Column field="labels" header="Метка"  >
-        <template #body="{ data }">
-          <InputText
-              v-model="data.labelsString"
-              placeholder="Введите метки через ;"
-              :maxlength="50"
-              :class="{'p-invalid': hasError(data, 'login')}"
-              @blur="validateAndSave(data)"
-          />
-        </template>
-      </Column>
-
-      <Column field="type" header="Тип записи">
-        <template #body="{ data }">
-          <Dropdown
-              class="dropdown"
-              v-model="data.type"
-              :options="recordTypes"
-              option-label="label"
-              option-value="value"
-              placeholder="Выберите тип"
-              :class="{'p-invalid': hasError(data, 'login')}"
-              @change="onTypeChange(data)"
-          />
-        </template>
-      </Column>
-
-      <Column field="login" header="Логин">
-        <template #body="{ data }">
-          <InputText
-              v-model="data.login"
-              placeholder="Введите логин"
-              :maxlength="100"
-              :class="{'p-invalid': hasError(data, 'login')}"
-              @blur="validateAndSave(data)"
-          />
-          <small v-if="hasError(data, 'login')" class="p-error"></small>
-        </template>
-      </Column>
-
-      <Column field="password" header="Пароль">
-        <template #body="{ data }">
-          <InputText
-              v-if="data.type === 'local'"
-              v-model="data.password"
-              type="password"
-              placeholder="Введите пароль"
-              :maxlength="100"
-              :class="{'p-invalid': hasError(data, 'password')}"
-              @blur="validateAndSave(data)"
-          />
-          <small v-if="data.type === 'local' && hasError(data, 'password')" class="p-error">
-          </small>
-        </template>
-      </Column>
-
-      <Column header="Действия">
-        <template #body="{ data }">
-          <Button
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              rounded
-              @click="deleteAccount(data)"
-          />
-        </template>
-      </Column>
-    </DataTable>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { useAccountStore } from '../../stores/accountStore';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
-import Button from 'primevue/button';
+
+import LabelsInput from './LabelsInput.vue';
+import RecordTypeDropdown from './RecordTypeDropdown.vue';
+import LoginInput from './LoginInput.vue';
+import PasswordField from './PasswordField.vue';
+import DeleteButton from './DeleteButton.vue';
 
 interface DisplayAccount {
   id: string;
@@ -90,14 +19,9 @@ interface DisplayAccount {
   errors: string[];
 }
 
-
 const accountStore = useAccountStore();
 const displayAccounts = ref<DisplayAccount[]>([]);
 
-const recordTypes = ref([
-  { label: 'LDAP', value: 'ldap' },
-  { label: 'Локальная', value: 'local' }
-]);
 
 const initializeDisplayAccounts = () => {
   displayAccounts.value = accountStore.accounts.map(account => ({
@@ -110,33 +34,45 @@ const initializeDisplayAccounts = () => {
   }));
 };
 
+
 watch(() => accountStore.accounts, initializeDisplayAccounts, { deep: true });
 onMounted(initializeDisplayAccounts);
 
-const validateAccount = (account: DisplayAccount) => {
+
+const validateAccount = (account: DisplayAccount): string[] => {
   const errors: string[] = [];
+
   if (!account.login?.trim()) errors.push('login');
   if (account.type === 'local' && !account.password) errors.push('password');
+  if (!account.type) errors.push('type');
+
   return errors;
 };
 
-const hasError = (account: DisplayAccount, field: string) => {
+const hasError = (account: DisplayAccount, field: string): boolean => {
   return account.errors?.includes(field);
 };
 
+
 const onTypeChange = (account: DisplayAccount) => {
-  if (account.type === 'ldap') account.password = null;
+  if (account.type === 'ldap') {
+    account.password = null;
+  }
   validateAndSave(account);
 };
 
 const validateAndSave = (account: DisplayAccount) => {
   const errors = validateAccount(account);
   account.errors = errors;
-  if (errors.length === 0) saveAccount(account);
+
+  if (errors.length === 0) {
+    saveAccount(account);
+  }
 };
 
 const saveAccount = (account: DisplayAccount) => {
   const accountData = {
+    id: Date.now().toString(),
     labels: account.labelsString,
     type: account.type,
     login: account.login,
@@ -155,21 +91,75 @@ const deleteAccount = (account: DisplayAccount) => {
 };
 </script>
 
+<template>
+  <div class="card">
+    <DataTable
+        :value="displayAccounts"
+        :size="'small'"
+        table-style="min-width: 50rem"
+        class="accounts-table"
+    >
+      <Column field="labels" header="Метка">
+        <template #body="{ data }">
+          <LabelsInput
+              :model-value="data.labelsString"
+              @update:model-value="data.labelsString = $event"
+              @blur="validateAndSave(data)"
+          />
+        </template>
+      </Column>
+
+      <Column field="type" header="Тип записи">
+        <template #body="{ data }">
+          <RecordTypeDropdown
+              :model-value="data.type"
+              @update:model-value="data.type = $event"
+              @change="onTypeChange(data)"
+              :has-error="hasError(data, 'type')"
+          />
+        </template>
+      </Column>
+
+      <Column field="login" header="Логин">
+        <template #body="{ data }">
+          <LoginInput
+              :model-value="data.login"
+              @update:model-value="data.login = $event"
+              @blur="validateAndSave(data)"
+              :has-error="hasError(data, 'login')"
+          />
+        </template>
+      </Column>
+
+      <Column field="password" header="Пароль">
+        <template #body="{ data }">
+          <PasswordField
+              :account="data"
+              @update-password="data.password = $event"
+              @blur="validateAndSave(data)"
+              :has-error="hasError(data, 'password')"
+          />
+        </template>
+      </Column>
+
+      <Column class="actions-column">
+        <template #body="{ data }">
+          <DeleteButton @click="deleteAccount(data)" />
+        </template>
+      </Column>
+    </DataTable>
+  </div>
+</template>
+
+
 <style scoped>
-.dropdown{
-  min-width: 160px;
+.accounts-table {
+  :deep(.p-datatable-tbody > tr > td) {
+    padding: 0.5rem;
+  }
 }
 
-
-.p-error {
-  display: block;
-  color: #e24c4c;
-}
-
-.p-invalid {
-  border-color: #e24c4c !important;
-}
-.dropdown-input{
-  padding: 0 !important;
+.actions-column {
+  width: 80px;
 }
 </style>

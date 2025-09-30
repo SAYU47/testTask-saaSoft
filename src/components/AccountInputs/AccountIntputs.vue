@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
 
-// Пропсы для компонента
 defineProps<{
   title?: string;
 }>();
